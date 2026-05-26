@@ -71,7 +71,7 @@ export default function App() {
     };
 
     try {
-      const response = await fetch('http://localhost:8000/api/polla', {
+      const response = await fetch('https://bancodeoccidente-fh4l.onrender.com/api/polla', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
