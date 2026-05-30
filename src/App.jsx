@@ -153,7 +153,7 @@ export default function App() {
       
       {/* Encabezado */}
       <header className="bg-slate-900 border-b border-slate-800 py-6 text-center shadow-lg">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-amber-500 tracking-wide">POLLA BdO </h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold text-amber-500 tracking-wide">POLLA FUTBOLERA BdO </h1>
         <p className="text-slate-400 text-sm mt-1">23 de Junio - Colombia vs RD Congo</p>
       </header>
 
@@ -283,7 +283,7 @@ export default function App() {
         </section>
 
         {/* SECCIÓN 3: REJILLA DE JUGADORES */}
-        <h2 className="text-lg font-bold text-slate-400 mb-3 px-1">Arma tu XI e indica sus goles:</h2>
+        <h2 className="text-lg font-bold text-slate-400 mb-3 px-1">Arma tu Equipo de los 11:</h2>
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {jugadoresFiltrados.map((jugador) => {
             const esTitular = titulares.includes(jugador.id);
