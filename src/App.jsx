@@ -124,10 +124,9 @@ export default function App() {
   };
 // Cuando modifican la cantidad de goles con el + o -
 const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
-  setJugadoresEstado(prev => prev.map(j => {
-    if (j.id === jugadorId) {
-      // Inicializar o ajustar el tamaño del arreglo de rangos de minutos
-      const rangosActuales = j.infoGol?.rangosMinutosArray || [];
+    setGoleadores(prev => {
+      const infoActual = prev[jugadorId] || { hizoGol: false, cantidadGoles: 0, rangosMinutosArray: [] };
+      const rangosActuales = infoActual.rangosMinutosArray || [];
       let nuevosRangos = [...rangosActuales];
       
       if (nuevaCantidad > rangosActuales.length) {
@@ -139,36 +138,33 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
       }
 
       return {
-        ...j,
-        infoGol: {
-          ...j.infoGol,
+        ...prev,
+        [jugadorId]: {
+          ...infoActual,
           hizoGol: nuevaCantidad > 0,
           cantidadGoles: nuevaCantidad,
           rangosMinutosArray: nuevosRangos
         }
       };
-    }
-    return j;
-  }));
-};
+    });
+  };
 
 // Cuando cambian el minuto de un gol específico
-const handleRangoMultiGolChange = (jugadorId, golIndex, nuevoRango) => {
-  setJugadoresEstado(prev => prev.map(j => {
-    if (j.id === jugadorId) {
-      const nuevosRangos = [...(j.infoGol?.rangosMinutosArray || [])];
+  const handleRangoMultiGolChange = (jugadorId, golIndex, nuevoRango) => {
+    setGoleadores(prev => {
+      const infoActual = prev[jugadorId] || { hizoGol: false, cantidadGoles: 0, rangosMinutosArray: [] };
+      const nuevosRangos = [...(infoActual.rangosMinutosArray || [])];
       nuevosRangos[golIndex] = nuevoRango;
+      
       return {
-        ...j,
-        infoGol: {
-          ...j.infoGol,
+        ...prev,
+        [jugadorId]: {
+          ...infoActual,
           rangosMinutosArray: nuevosRangos
         }
       };
-    }
-    return j;
-  }));
-}; 
+    });
+  }; 
   // Sugerir alineación automática con IA (Para los no futboleros)
   const sugerirAlineacionIA = () => {
     const sugeridos = datosJugadores
@@ -434,6 +430,10 @@ const handleRangoMultiGolChange = (jugadorId, golIndex, nuevoRango) => {
                     )}
                   </div>
                 )}
+              </div>
+            );
+          })}
+        </section>
   
 
         {/* SECCIÓN 4: CAMBIOS TÁCTICOS CLAVE */}
