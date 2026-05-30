@@ -38,7 +38,7 @@ export default function App() {
     "76' - 90' (Agonía del partido)"
   ];
 
-  const enviarPolla = async () => {
+const enviarPolla = async () => {
     // 1. Validar que los campos no estén vacíos
     if (!nombre.trim() || !correo.trim()) {
       alert("Por favor, ingresa tu nombre y correo electrónico.");
@@ -58,14 +58,40 @@ export default function App() {
       return;
     }
 
-    // Estructura de datos lista para enviar a la API de Python
+    // 🧹 CORRECCIÓN 1: Limpiar goleadores fantasmas antes de procesar o enviar
+    const goleadoresLimpios = {};
+    let totalGolesColombiaAsignados = 0;
+
+    Object.keys(goleadores).forEach((id) => {
+      const player_id = Number(id);
+      const infoJugador = goleadores[id];
+
+      // Un jugador es válido si está en el XI titular y tiene al menos 1 gol asignado
+      if (titulares.includes(player_id) && infoJugador && (infoJugador.cantidadGoles || 0) > 0) {
+        goleadoresLimpios[id] = infoJugador;
+        totalGolesColombiaAsignados += (infoJugador.cantidadGoles || 0);
+      }
+    });
+
+    // ⚽ CORRECCIÓN 2: Validar consistencia matemática del marcador global vs goleadores
+    if (totalGolesColombiaAsignados !== Number(golesColombia)) {
+      alert(
+        `⚠️ El marcador no coincide:\n\n` +
+        `Has configurado ${golesColombia} gol(es) para Colombia en el marcador global, ` +
+        `pero los goles asignados a tus jugadores suman un total de ${totalGolesColombiaAsignados} gol(es).\n\n` +
+        `Por favor, ajusta los goles de tus jugadores o el marcador global.`
+      );
+      return; // Bloquea el envío si no cuadra
+    }
+
+    // Estructura de datos limpia y verificada lista para enviar a la API de Python
     const payload = {
       nombre: nombre.trim(),
       correo: correo.trim().toLowerCase(),
-      goles_colombia: golesColombia,
-      goles_congo: golesCongo,
+      goles_colombia: Number(golesColombia),
+      goles_congo: Number(golesCongo),
       titulares: titulares,
-      goleadores: goleadores,
+      goleadores: goleadoresLimpios, // <-- Enviamos la data limpia sin fantasmas
       cambio_sale: jugadorSale,
       cambio_entra: jugadorEntra
     };
@@ -80,7 +106,6 @@ export default function App() {
       const resultado = await response.json();
 
       if (!response.ok) {
-        // Aquí el backend nos avisará si ya expiró el tiempo o si el correo ya participó
         alert(`⚠️ Error: ${resultado.detail}`);
       } else {
         alert("🎉 ¡Tu polla táctica ha sido registrada con éxito! Buena suerte.");
@@ -88,7 +113,7 @@ export default function App() {
     } catch (error) {
       alert("Hubo un problema al conectar con el servidor. Inténtalo más tarde.");
     }
-  };
+  }; 
 
   // Alternar jugador en el XI titular
   const toggleTitular = (id) => {
@@ -166,6 +191,7 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
     });
   }; 
   // Sugerir alineación automática con IA (Para los no futboleros)
+// Sugerir alineación automática con IA (Para los no futboleros)
   const sugerirAlineacionIA = () => {
     const sugeridos = datosJugadores
       .filter(j => j.equipo === paisSeleccionado)
@@ -173,15 +199,25 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
       .map(j => j.id);
     setTitulares(sugeridos);
     
-    // Si es Colombia, le ponemos un gol predictivo a Luis Díaz por defecto usando la IA
+    // Si es Colombia, le ponemos un gol predictivo a Luis Díaz (ID 10) estructurado correctamente
     if (paisSeleccionado === 'Colombia') {
       setGoleadores({
-        10: { hizoGol: true, rangoMinuto: "61' - 75' (Segundo Tiempo)" } // Luis Díaz ID 10
+        10: { 
+          hizoGol: true, 
+          cantidadGoles: 1, 
+          rangosMinutosArray: ["61' - 75' (Segundo Tiempo)"] 
+        }
       });
+      setGolesColombia(1); // Forzamos el marcador a 1 para mantener coherencia inicial
+      setGolesCongo(0);
       setJugadorSale("James Rodríguez");
       setJugadorEntra("Juan Fernando Quintero");
+    } else {
+      setGoleadores({});
+      setGolesColombia(0);
+      setGolesCongo(0);
     }
-  };
+  }; 
 
   const consultarIA = (id, stats) => {
     setTextosIA(prev => ({ ...prev, [id]: textosIA[id] ? "" : `💡 Análisis: ${stats}` }));
