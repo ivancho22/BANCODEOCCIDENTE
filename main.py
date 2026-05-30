@@ -1,15 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr, model_validator  # <-- Añadimos model_validator aquí
+from pydantic import BaseModel, EmailStr, model_validator
 from typing import List, Dict, Any, Optional
 from supabase import create_client, Client
 
 app = FastAPI()
 
-# Configura los CORS para que Vercel pueda comunicarse sin bloqueos
+# Middleware CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # En producción puedes cambiarlo por tu link de Vercel
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -21,65 +21,75 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-# ─── MODELO DE DATOS DE PYDANTIC (Con Validación de Consistencia) ───
+# ─── MODELO DE DATOS OPTIMIZADO PARA AMBOS EQUIPOS ───
 class PollaPayload(BaseModel):
     nombre: str
     correo: EmailStr
     goles_colombia: int
     goles_congo: int
-    titulares: List[int]
-    goleadores: Dict[str, Any] # Recibe la estructura flexible multi-gol
+    titulares: List[int]       # Puedes meter aquí todos los IDs de titulares juntos
+    goleadores: Dict[str, Any]  # Recibe el diccionario estructurado con {"colombia": {...}, "congo": {...}}
     cambio_sale: Optional[str] = None
     cambio_entra: Optional[str] = None
 
-    # === ESTO ES LO QUE PREVIENE EL ERROR DE LAS ANOTACIONES DE MÁS ===
     @model_validator(mode='after')
-    def validar_consistencia_goles(self) -> 'PollaPayload':
-        total_goles_goleadores = 0
-        
-        # Recorremos el objeto de goleadores para contar cuántos goles reales se asignaron
-        for jugador_id, info in self.goleadores.items():
+    def validar_goles_doble_vía(self) -> 'PollaPayload':
+        # Extraemos los diccionarios por país de manera segura
+        goleadores_colombia = self.goleadores.get("colombia", {})
+        goleadores_congo = self.goleadores.get("congo", {})
+
+        total_colombia = 0
+        total_congo = 0
+
+        # 1. Contar goles de Colombia
+        for jugador_id, info in goleadores_colombia.items():
             if info.get("hizoGol"):
-                # Si viene 'cantidadGoles' (como el 2 que pusiste) lo suma, si no, asume 1 gol básico
-                goles_jugador = info.get("cantidadGoles", 1)
-                total_goles_goleadores += goles_jugador
-        
-        # Si los goles asignados a los jugadores NO coinciden con el marcador global de Colombia
-        if total_goles_goleadores != self.goles_colombia:
+                total_colombia += info.get("cantidadGoles", 1)
+
+        # 2. Contar goles del Congo
+        for jugador_id, info in goleadores_congo.items():
+            if info.get("hizoGol"):
+                total_congo += info.get("cantidadGoles", 1)
+
+        # 3. Validar consistencia de Colombia
+        if total_colombia != self.goles_colombia:
             raise ValueError(
-                f"Marcador inconsistente. Indicaste {self.goles_colombia} gol(es) para Colombia, "
-                f"pero sumaste {total_goles_goleadores} gol(es) en el desglose de los jugadores."
+                f"Inconsistencia en Colombia: El marcador global dice {self.goles_colombia} gol(es), "
+                f"pero se asignaron {total_colombia} gol(es) a sus jugadores."
             )
-            
+
+        # 4. Validar consistencia del Congo
+        if total_congo != self.goles_congo:
+            raise ValueError(
+                f"Inconsistencia en RD Congo: El marcador global dice {self.goles_congo} gol(es), "
+                f"pero se asignaron {total_congo} gol(es) a sus jugadores."
+            )
+
         return self
 
 
 @app.post("/api/polla")
 async def registrar_polla(payload: PollaPayload):
     try:
-        # 1. Preparar el diccionario con los datos exactos para la tabla
         datos_apuesta = {
             "nombre": payload.nombre,
             "correo": payload.correo.lower(),
             "goles_colombia": payload.goles_colombia,
             "goles_congo": payload.goles_congo,
             "titulares": payload.titulares,   
-            "goleadores": payload.goleadores, 
+            "goleadores": payload.goleadores, # Aquí se guardará el JSON estructurado con ambos equipos
             "cambio_sale": payload.cambio_sale,
             "cambio_entra": payload.cambio_entra
         }
 
-        # 2. Insertar directamente en la tabla 'apuestas' de Supabase
         response = supabase.table("apuestas").insert(datos_apuesta).execute()
-        
-        return {"status": "success", "message": "Polla registrada correctamente en la base de datos."}
+        return {"status": "success", "message": "¡Polla registrada correctamente con ambos equipos!"}
 
     except Exception as e:
-        # Captura tanto los errores de Supabase como los de nuestra validación personalizada
         error_msg = str(e)
         
-        # Si nuestra validación de Pydantic falla, lanzamos un Bad Request estructurado
-        if "Marcador inconsistente" in error_msg:
+        # Captura nuestros mensajes de error personalizados
+        if "Inconsistencia" in error_msg:
             raise HTTPException(status_code=400, detail=error_msg)
             
         if "unique" in error_msg.lower() or "duplicate" in error_msg.lower():

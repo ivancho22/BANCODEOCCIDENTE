@@ -96,12 +96,44 @@ const enviarPolla = async () => {
       cambio_entra: jugadorEntra
     };
 
+    const payload = {
+      nombre: nombre,            // o como se llamen tus variables de estado
+      correo: correo,
+      goles_colombia: golesColombia, 
+      goles_congo: golesCongo,       
+      titulares: titularesArray, 
+      
+      // AQUÍ ESTÁ EL CAMBIO CLAVE: Mapeas los dos grupos de goleadores
+      goleadores: {
+        colombia: goleadoresColombia, // El objeto de seleccionados de Colombia
+        congo: goleadoresCongo        // El objeto de seleccionados de RD Congo
+      },
+      
+      cambio_sale: cambioSale,
+      cambio_entra: cambioEntra
+    };
+
     try {
       const response = await fetch('https://bancodeoccidente-fh4l.onrender.com/api/polla', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
+      const resultado = await response.json();
+
+      if (!response.ok) {
+        // Esto mostrará en pantalla las alertas de "Inconsistencia" que programamos en el main.py
+        alert(`⚠️ ${resultado.detail}`);
+        return;
+      }
+
+      alert("🎉 ¡Tu polla táctica ha sido registrada con éxito!");
+
+    } catch (error) {
+      console.error("Error al enviar:", error);
+      alert("Hubo un error de red al enviar la polla.");
+    }
 
       const resultado = await response.json();
 
