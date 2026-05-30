@@ -122,7 +122,53 @@ export default function App() {
       [id]: { ...prev[id], rangoMinuto: rango }
     }));
   };
+// Cuando modifican la cantidad de goles con el + o -
+const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
+  setJugadoresEstado(prev => prev.map(j => {
+    if (j.id === jugadorId) {
+      // Inicializar o ajustar el tamaño del arreglo de rangos de minutos
+      const rangosActuales = j.infoGol?.rangosMinutosArray || [];
+      let nuevosRangos = [...rangosActuales];
+      
+      if (nuevaCantidad > rangosActuales.length) {
+        // Si sumó un gol, añade el primer rango por defecto
+        nuevosRangos.push(rangosMinutos[0]);
+      } else {
+        // Si restó un gol, remueve el último
+        nuevosRangos = nuevosRangos.slice(0, nuevaCantidad);
+      }
 
+      return {
+        ...j,
+        infoGol: {
+          ...j.infoGol,
+          hizoGol: nuevaCantidad > 0,
+          cantidadGoles: nuevaCantidad,
+          rangosMinutosArray: nuevosRangos
+        }
+      };
+    }
+    return j;
+  }));
+};
+
+// Cuando cambian el minuto de un gol específico
+const handleRangoMultiGolChange = (jugadorId, golIndex, nuevoRango) => {
+  setJugadoresEstado(prev => prev.map(j => {
+    if (j.id === jugadorId) {
+      const nuevosRangos = [...(j.infoGol?.rangosMinutosArray || [])];
+      nuevosRangos[golIndex] = nuevoRango;
+      return {
+        ...j,
+        infoGol: {
+          ...j.infoGol,
+          rangosMinutosArray: nuevosRangos
+        }
+      };
+    }
+    return j;
+  }));
+}; 
   // Sugerir alineación automática con IA (Para los no futboleros)
   const sugerirAlineacionIA = () => {
     const sugeridos = datosJugadores
@@ -340,37 +386,55 @@ export default function App() {
                 {/* PANEL DE GOLES (Sólo si está en el XI titular) */}
                 {esTitular && (
                   <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={infoGol.hizoGol}
-                        onChange={(e) => handleCheckGol(jugador.id, e.target.checked)}
-                        className="w-3.5 h-3.5 rounded text-amber-500 bg-slate-800 border-slate-700 focus:ring-0 accent-amber-500"
-                      />
-                      ⚽ ¿Marcará gol este jugador?
-                    </label>
-
-                    {infoGol.hizoGol && (
-                      <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 mt-1 animate-fadeIn">
-                        <label className="block text-[10px] text-slate-500 mb-1">Selecciona el rango de tiempo:</label>
-                        <select
-                          value={infoGol.rangoMinuto}
-                          onChange={(e) => handleRangoChange(jugador.id, e.target.value)}
-                          className="w-full bg-slate-900 text-xs text-amber-400 font-semibold border border-slate-800 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500"
+                    {/* Selector de cantidad de goles */}
+                    <div className="flex items-center justify-between text-xs text-slate-300 select-none">
+                      <span className="flex items-center gap-2">⚽ ¿Cuántos goles marcará?</span>
+                      
+                      <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleCantidadGolesChange(jugador.id, Math.max(0, (infoGol.cantidadGoles || 0) - 1))}
+                          className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-bold"
                         >
-                          {rangosMinutos.map((rango, idx) => (
-                            <option key={idx} value={rango}>{rango}</option>
-                          ))}
-                        </select>
+                          -
+                        </button>
+                        <span className="w-6 text-center font-bold text-amber-500 text-xs">
+                          {infoGol.cantidadGoles || 0}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCantidadGolesChange(jugador.id, (infoGol.cantidadGoles || 0) + 1)}
+                          className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-bold"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Renderiza dinámicamente un selector de rango por cada gol elegido */}
+                    {(infoGol.cantidadGoles || 0) > 0 && (
+                      <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 mt-1 flex flex-col gap-2 animate-fadeIn">
+                        {Array.from({ length: infoGol.cantidadGoles }).map((_, index) => (
+                          <div key={index} className="flex flex-col gap-1">
+                            <label className="block text-[10px] text-slate-500">
+                              Rango de tiempo para el Gol #{index + 1}:
+                            </label>
+                            <select
+                              value={infoGol.rangosMinutosArray?.[index] || rangosMinutos[0]}
+                              onChange={(e) => handleRangoMultiGolChange(jugador.id, index, e.target.value)}
+                              className="w-full bg-slate-900 text-xs text-amber-400 font-semibold border border-slate-800 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500"
+                            >
+                              {rangosMinutos.map((rango, idx) => (
+                                <option key={idx} value={rango}>{rango}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
                 )}
-
-              </div>
-            );
-          })}
-        </section>
+  
 
         {/* SECCIÓN 4: CAMBIOS TÁCTICOS CLAVE */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mt-8">
