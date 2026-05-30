@@ -139,16 +139,17 @@ export default function App() {
     }
   }; 
 
-  // Alternar jugador en el XI titular sin perder la memoria de selección global
+  // Alternar jugador en el XI titular evaluando numéricamente el ID
   const toggleTitular = (id) => {
-    if (titulares.includes(id)) {
-      setTitulares(titulares.filter(tId => tId !== id));
+    const playerId = Number(id);
+    if (titulares.includes(playerId)) {
+      setTitulares(titulares.filter(tId => tId !== playerId));
     } else {
       if (titulares.length >= 11) {
-        alert("¡Ya seleccionaste tus 11 titulares globales! Si deseas cambiar, remueve a un jugador antes de elegir otro.");
+        alert("¡Ya seleccionaste tus 11 titulares globales! Remueve un jugador antes de agregar otro.");
         return;
       }
-      setTitulares([...titulares, id]);
+      setTitulares([...titulares, playerId]);
     }
   };
 
@@ -201,18 +202,16 @@ export default function App() {
   }; 
 
   const sugerirAlineacionIA = () => {
-    // Sugerir los primeros 11 del país seleccionado que quepan en el espacio libre
+    // Sugerir los de la pestaña actual cuidando de no borrar por completo las otras selecciones
     const sugeridosPais = datosJugadores
       .filter(j => j.equipo === paisSeleccionado)
       .map(j => j.id);
 
-    // Filtrar los titulares que pertenezcan a OTROS países para no borrarlos al cambiar de pestaña
     const titularesOtrosPaises = titulares.filter(id => {
       const jug = datosJugadores.find(j => j.id === id);
       return jug && jug.equipo !== paisSeleccionado;
     });
 
-    // Unir los de otros países con la recomendación nueva cuidando el límite estricto de 11
     const nuevaSeleccion = [...titularesOtrosPaises, ...sugeridosPais].slice(0, 11);
     setTitulares(nuevaSeleccion);
     
@@ -239,12 +238,10 @@ export default function App() {
     setTextosIA(prev => ({ ...prev, [id]: textosIA[id] ? "" : `💡 Análisis: ${stats}` }));
   };
 
-  // =========================================================================
-  // LOGICA DE FILTRADO SEPARADO: Mantiene los estados vivos al cambiar de pestaña
-  // =========================================================================
+  // Filtrado estricto por el país activo de la pestaña
   const jugadoresFiltrados = datosJugadores.filter(j => j.equipo === paisSeleccionado);
   
-  // Cambiamos el conteo para reflejar el total GLOBAL (de los 11 que exige la polla completa)
+  // Conteo unificado de la polla global (Muestra cuántos llevas elegidos del total de 11)
   const conteoTitularesGlobal = titulares.length;
 
   return (
@@ -325,10 +322,11 @@ export default function App() {
               </div>
             </div>
             <button
+              type="button"
               onClick={() => setMostrarIAGlobal(!mostrarIAGlobal)}
               className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-md"
             >
-              {mostrarIAGlobal ? "🔮 Ocultar Recommendation" : "🔮 Analizar Partido con IA"}
+              {mostrarIAGlobal ? "🔮 Ocultar Recomendación" : "🔮 Analizar Partido con IA"}
             </button>
           </div>
           {mostrarIAGlobal && (
@@ -363,7 +361,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            <span className="text-xs text-slate-400">Total Seleccionados: <strong className="text-amber-500 text-sm">{conteoTitularesGlobal}/11</strong></span>
+            <span className="text-xs text-slate-400">Elegidos: <strong className="text-amber-500 text-sm">{conteoTitularesGlobal}/11</strong></span>
             <button 
               type="button"
               onClick={sugerirAlineacionIA}
@@ -378,16 +376,16 @@ export default function App() {
         <h2 className="text-lg font-bold text-slate-400 mb-3 px-1">Arma tu Equipo de los 11:</h2>
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {jugadoresFiltrados.map((jugador) => {
-            const esTitular = titulares.includes(jugador.id);
+            // Evaluamos con Number() para evitar que fallas de tipos de datos en los IDs rompan el CSS
+            const esTitular = titulares.includes(Number(jugador.id));
             const textoIAJugador = textosIA[jugador.id];
             
-            // Leemos dinámicamente del cajón correcto según el país actual
             const infoGol = (paisSeleccionado === 'Colombia' ? goleadoresColombia : goleadoresCongo)[jugador.id] || { hizoGol: false, cantidadGoles: 0, rangosMinutosArray: [] };
 
             return (
               <div 
                 key={jugador.id} 
-                className={`bg-slate-900 border rounded-xl p-4 flex flex-col justify-between shadow-md transition-all ${esTitular ? 'border-amber-500 ring-1 ring-amber-500/30 bg-slate-900/90' : 'border-slate-800 hover:border-slate-700'}`}
+                className={`bg-slate-900 border rounded-xl p-4 flex flex-col justify-between shadow-md transition-all ${esTitular ? 'border-amber-500 ring-1 ring-amber-500/50 bg-slate-900/90 shadow-amber-500/10' : 'border-slate-800 hover:border-slate-700'}`}
               >
                 <div>
                   <div className="flex items-center justify-between gap-4">
@@ -418,7 +416,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => toggleTitular(jugador.id)}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${esTitular ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${esTitular ? 'bg-amber-500 text-slate-950 shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
                     >
                       {esTitular ? 'Quitar' : 'Alinear'}
                     </button>
@@ -447,7 +445,7 @@ export default function App() {
                           -
                         </button>
                         <span className="w-6 text-center font-bold text-amber-500 text-xs">
-                          {infoGol.amountGoles || infoGol.cantidadGoles || 0}
+                          {infoGol.cantidadGoles || 0}
                         </span>
                         <button
                           type="button"
