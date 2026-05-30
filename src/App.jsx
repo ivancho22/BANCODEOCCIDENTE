@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 import { datosJugadores, analisisPartidoIA } from './datosJugadores';
 
 export default function App() {
-  // Nuevos estados para el usuario
+  // Datos del participante
   const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
+
+  // Estados persistentes separados para los goles por equipo (¡Aquí está la magia!)
+  const [goleadoresColombia, setGoleadoresColombia] = useState({});
+  const [goleadoresCongo, setGoleadoresCongo] = useState({});
 
   // Estados para el marcador global
   const [golesColombia, setGolesColombia] = useState(0);
@@ -17,12 +21,8 @@ export default function App() {
   const [mostrarIAGlobal, setMostrarIAGlobal] = useState(false);
   const [textosIA, setTextosIA] = useState({});
 
-  // --- LÓGICA DE FÚTBOL FANTASY ---
+  // Titulares elegidos globales (coexisten los de ambos países en la misma lista)
   const [titulares, setTitulares] = useState([]);
-  
-  // Estado para capturar los goles de los titulares
-  // Estructura: { [jugadorId]: { hizoGol: boolean, rangoMinuto: string } }
-  const [goleadores, setGoleadores] = useState({});
 
   // Datos del cambio clave táctico
   const [jugadorSale, setJugadorSale] = useState('');
@@ -38,79 +38,83 @@ export default function App() {
     "76' - 90' (Agonía del partido)"
   ];
 
-const enviarPolla = async () => {
-    // 1. Validar que los campos no estén vacíos
+  const enviarPolla = async () => {
+    // 1. Validar campos vacíos
     if (!nombre.trim() || !correo.trim()) {
       alert("Por favor, ingresa tu nombre y correo electrónico.");
       return;
     }
 
-    // 2. Validar estrictamente el dominio corporativo
+    // 2. Validar dominio corporativo
     const dominioRequerido = "@bancodeoccidente.com.co";
     if (!correo.toLowerCase().endsWith(dominioRequerido)) {
       alert(`Acceso denegado. Solo se permiten correos corporativos con la extensión ${dominioRequerido}`);
       return;
     }
 
-    // 3. Validar que tenga los 11 titulares elegidos
+    // 3. Validar los 11 titulares elegidos en total
     if (titulares.length !== 11) {
       alert(`Debes completar exactamente 11 titulares. Actualmente tienes ${titulares.length}/11.`);
       return;
     }
 
-    // 🧹 CORRECCIÓN 1: Limpiar goleadores fantasmas antes de procesar o enviar
-    const goleadoresLimpios = {};
+    // 🧹 Limpieza y validación matemática de goles para Colombia
+    const colombiaLimpio = {};
     let totalGolesColombiaAsignados = 0;
-
-    Object.keys(goleadores).forEach((id) => {
+    Object.keys(goleadoresColombia).forEach((id) => {
       const player_id = Number(id);
-      const infoJugador = goleadores[id];
-
-      // Un jugador es válido si está en el XI titular y tiene al menos 1 gol asignado
-      if (titulares.includes(player_id) && infoJugador && (infoJugador.cantidadGoles || 0) > 0) {
-        goleadoresLimpios[id] = infoJugador;
-        totalGolesColombiaAsignados += (infoJugador.cantidadGoles || 0);
+      const info = goleadoresColombia[id];
+      if (titulares.includes(player_id) && info && (info.cantidadGoles || 0) > 0) {
+        colombiaLimpio[id] = info;
+        totalGolesColombiaAsignados += info.cantidadGoles;
       }
     });
 
-    // ⚽ CORRECCIÓN 2: Validar consistencia matemática del marcador global vs goleadores
+    // 🧹 Limpieza y validación matemática de goles para RD Congo
+    const congoLimpio = {};
+    let totalGolesCongoAsignados = 0;
+    Object.keys(goleadoresCongo).forEach((id) => {
+      const player_id = Number(id);
+      const info = goleadoresCongo[id];
+      if (titulares.includes(player_id) && info && (info.cantidadGoles || 0) > 0) {
+        congoLimpio[id] = info;
+        totalGolesCongoAsignados += info.cantidadGoles;
+      }
+    });
+
+    // ⚽ Validar consistencia matemática en Colombia
     if (totalGolesColombiaAsignados !== Number(golesColombia)) {
       alert(
-        `⚠️ El marcador no coincide:\n\n` +
+        `⚠️ El marcador de Colombia no coincide:\n\n` +
         `Has configurado ${golesColombia} gol(es) para Colombia en el marcador global, ` +
-        `pero los goles asignados a tus jugadores suman un total de ${totalGolesColombiaAsignados} gol(es).\n\n` +
-        `Por favor, ajusta los goles de tus jugadores o el marcador global.`
+        `pero los goles asignados a sus jugadores suman ${totalGolesColombiaAsignados} gol(es).`
       );
-      return; // Bloquea el envío si no cuadra
+      return;
     }
 
-    // Estructura de datos limpia y verificada lista para enviar a la API de Python
+    // ⚽ Validar consistencia matemática en RD Congo
+    if (totalGolesCongoAsignados !== Number(golesCongo)) {
+      alert(
+        `⚠️ El marcador de RD Congo no coincide:\n\n` +
+        `Has configurado ${golesCongo} gol(es) para RD Congo en el marcador global, ` +
+        `pero los goles asignados a sus jugadores suman ${totalGolesCongoAsignados} gol(es).`
+      );
+      return;
+    }
+
+    // Estructura de datos unificada enviada como un único payload organizado hacia la API
     const payload = {
       nombre: nombre.trim(),
       correo: correo.trim().toLowerCase(),
       goles_colombia: Number(golesColombia),
       goles_congo: Number(golesCongo),
       titulares: titulares,
-      goleadores: goleadoresLimpios, // <-- Enviamos la data limpia sin fantasmas
+      goleadores: {
+        colombia: colombiaLimpio,
+        congo: congoLimpio
+      },
       cambio_sale: jugadorSale,
       cambio_entra: jugadorEntra
-    };
-
-    const payload = {
-      nombre: nombre,            // o como se llamen tus variables de estado
-      correo: correo,
-      goles_colombia: golesColombia, 
-      goles_congo: golesCongo,       
-      titulares: titularesArray, 
-      
-      // AQUÍ ESTÁ EL CAMBIO CLAVE: Mapeas los dos grupos de goleadores
-      goleadores: {
-        colombia: goleadoresColombia, // El objeto de seleccionados de Colombia
-        congo: goleadoresCongo        // El objeto de seleccionados de RD Congo
-      },
-      
-      cambio_sale: cambioSale,
-      cambio_entra: cambioEntra
     };
 
     try {
@@ -123,7 +127,6 @@ const enviarPolla = async () => {
       const resultado = await response.json();
 
       if (!response.ok) {
-        // Esto mostrará en pantalla las alertas de "Inconsistencia" que programamos en el main.py
         alert(`⚠️ ${resultado.detail}`);
         return;
       }
@@ -134,27 +137,12 @@ const enviarPolla = async () => {
       console.error("Error al enviar:", error);
       alert("Hubo un error de red al enviar la polla.");
     }
-
-      const resultado = await response.json();
-
-      if (!response.ok) {
-        alert(`⚠️ Error: ${resultado.detail}`);
-      } else {
-        alert("🎉 ¡Tu polla táctica ha sido registrada con éxito! Buena suerte.");
-      }
-    } catch (error) {
-      alert("Hubo un problema al conectar con el servidor. Inténtalo más tarde.");
-    }
   }; 
 
-  // Alternar jugador en el XI titular
+  // Alternar jugador en el XI titular sin resetear la memoria de goles del país
   const toggleTitular = (id) => {
     if (titulares.includes(id)) {
       setTitulares(titulares.filter(tId => tId !== id));
-      // Si quitamos al jugador de titulares, limpiamos su predicción de gol
-      const copiaGoleadores = { ...goleadores };
-      delete copiaGoleadores[id];
-      setGoleadores(copiaGoleadores);
     } else {
       if (titulares.length >= 11) {
         alert("¡Ya seleccionaste tus 11 titulares!");
@@ -164,51 +152,40 @@ const enviarPolla = async () => {
     }
   };
 
-  // Manejar si el titular mete gol
-  const handleCheckGol = (id, checked) => {
-    setGoleadores(prev => ({
-      ...prev,
-      [id]: { ...prev[id], hizoGol: checked, rangoMinuto: prev[id]?.rangoMinuto || rangosMinutos[0] }
-    }));
-  };
+  // Modificar cantidad de goles (+ o -) asignados según el equipo correspondiente
+  const handleCantidadGolesChange = (jugadorId, nuevaCantidad, equipo) => {
+    const esColombia = equipo === 'Colombia';
+    const estadoActual = esColombia ? goleadoresColombia : goleadoresCongo;
+    const setEstado = esColombia ? setGoleadoresColombia : setGoleadoresCongo;
 
-  // Manejar el rango de minutos del gol
-  const handleRangoChange = (id, rango) => {
-    setGoleadores(prev => ({
+    const infoActual = estadoActual[jugadorId] || { hizoGol: false, cantidadGoles: 0, rangosMinutosArray: [] };
+    const rangosActuales = infoActual.rangosMinutosArray || [];
+    let nuevosRangos = [...rangosActuales];
+    
+    if (nuevaCantidad > rangosActuales.length) {
+      nuevosRangos.push(rangosMinutos[0]);
+    } else {
+      nuevosRangos = nuevosRangos.slice(0, nuevaCantidad);
+    }
+
+    setEstado(prev => ({
       ...prev,
-      [id]: { ...prev[id], rangoMinuto: rango }
-    }));
-  };
-// Cuando modifican la cantidad de goles con el + o -
-const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
-    setGoleadores(prev => {
-      const infoActual = prev[jugadorId] || { hizoGol: false, cantidadGoles: 0, rangosMinutosArray: [] };
-      const rangosActuales = infoActual.rangosMinutosArray || [];
-      let nuevosRangos = [...rangosActuales];
-      
-      if (nuevaCantidad > rangosActuales.length) {
-        // Si sumó un gol, añade el primer rango por defecto
-        nuevosRangos.push(rangosMinutos[0]);
-      } else {
-        // Si restó un gol, remueve el último
-        nuevosRangos = nuevosRangos.slice(0, nuevaCantidad);
+      [jugadorId]: {
+        ...infoActual,
+        hizoGol: nuevaCantidad > 0,
+        amountGoles: nuevaCantidad, // Compatible con tu backend
+        cantidadGoles: nuevaCantidad,
+        rangosMinutosArray: nuevosRangos
       }
-
-      return {
-        ...prev,
-        [jugadorId]: {
-          ...infoActual,
-          hizoGol: nuevaCantidad > 0,
-          cantidadGoles: nuevaCantidad,
-          rangosMinutosArray: nuevosRangos
-        }
-      };
-    });
+    }));
   };
 
-// Cuando cambian el minuto de un gol específico
-  const handleRangoMultiGolChange = (jugadorId, golIndex, nuevoRango) => {
-    setGoleadores(prev => {
+  // Cambiar el minuto de un gol específico según el equipo
+  const handleRangoMultiGolChange = (jugadorId, golIndex, nuevoRango, equipo) => {
+    const esColombia = equipo === 'Colombia';
+    const setEstado = esColombia ? setGoleadoresColombia : setGoleadoresCongo;
+
+    setEstado(prev => {
       const infoActual = prev[jugadorId] || { hizoGol: false, cantidadGoles: 0, rangosMinutosArray: [] };
       const nuevosRangos = [...(infoActual.rangosMinutosArray || [])];
       nuevosRangos[golIndex] = nuevoRango;
@@ -222,8 +199,7 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
       };
     });
   }; 
-  // Sugerir alineación automática con IA (Para los no futboleros)
-// Sugerir alineación automática con IA (Para los no futboleros)
+
   const sugerirAlineacionIA = () => {
     const sugeridos = datosJugadores
       .filter(j => j.equipo === paisSeleccionado)
@@ -231,21 +207,20 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
       .map(j => j.id);
     setTitulares(sugeridos);
     
-    // Si es Colombia, le ponemos un gol predictivo a Luis Díaz (ID 10) estructurado correctamente
     if (paisSeleccionado === 'Colombia') {
-      setGoleadores({
+      setGoleadoresColombia({
         10: { 
           hizoGol: true, 
           cantidadGoles: 1, 
           rangosMinutosArray: ["61' - 75' (Segundo Tiempo)"] 
         }
       });
-      setGolesColombia(1); // Forzamos el marcador a 1 para mantener coherencia inicial
+      setGolesColombia(1); 
       setGolesCongo(0);
       setJugadorSale("James Rodríguez");
       setJugadorEntra("Juan Fernando Quintero");
     } else {
-      setGoleadores({});
+      setGoleadoresCongo({});
       setGolesColombia(0);
       setGolesCongo(0);
     }
@@ -260,7 +235,6 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-12">
-      
       {/* Encabezado */}
       <header className="bg-slate-900 border-b border-slate-800 py-6 text-center shadow-lg">
         <h1 className="text-3xl md:text-4xl font-extrabold text-amber-500 tracking-wide">POLLA FUTBOLERA BdO </h1>
@@ -268,7 +242,6 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 mt-8">
-        
         {/* SECCIÓN 1: MARCADOR GLOBAL */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mb-8">
           <h2 className="text-xl font-bold text-center text-slate-300 mb-4">¿Cuál será el marcador global?</h2>
@@ -295,7 +268,7 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
           </div>
         </section>
 
-        {/* NUEVA SECCIÓN: DATOS DEL PARTICIPANTE */}
+        {/* SECCIÓN: DATOS DEL PARTICIPANTE */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mb-8">
           <h2 className="text-base font-bold text-slate-300 mb-1 flex items-center gap-2">
             <span>👤</span> Datos del Participante
@@ -306,27 +279,19 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1.5">
-                Nombre Completo:
-              </label>
+              <label className="block text-xs font-semibold text-slate-400 mb-1.5">Nombre Completo:</label>
               <input 
-                type="text"
-                placeholder="Ej. Juan Pérez"
-                value={nombre}
+                type="text" placeholder="Ej. Juan Pérez" value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:outline-none focus:border-amber-500 text-slate-200 transition-colors"
+                className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:outline-none focus:border-amber-500 text-slate-200"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1.5">
-                Correo Electrónico Corporativo:
-              </label>
+              <label className="block text-xs font-semibold text-slate-400 mb-1.5">Correo Electrónico Corporativo:</label>
               <input 
-                type="email"
-                placeholder="usuario@bancodeoccidente.com.co"
-                value={correo}
+                type="email" placeholder="usuario@bancodeoccidente.com.co" value={correo}
                 onChange={(e) => setCorreo(e.target.value)}
-                className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:outline-none focus:border-amber-500 text-slate-200 transition-colors"
+                className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:outline-none focus:border-amber-500 text-slate-200"
               />
               <span className="text-[10px] text-amber-500/80 mt-1 block pl-1">
                 * Obligatorio dominio @bancodeoccidente.com.co
@@ -347,7 +312,7 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
             </div>
             <button
               onClick={() => setMostrarIAGlobal(!mostrarIAGlobal)}
-              className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
+              className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-md"
             >
               {mostrarIAGlobal ? "🔮 Ocultar Recomendación" : "🔮 Analizar Partido con IA"}
             </button>
@@ -364,17 +329,17 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
           )}
         </section>
 
-        {/* INTERRUPTOR DE PAÍSES */}
+        {/* INTERRUPTOR DE PAÍSES (¡Ya no limpia los goles al dar click!) */}
         <section className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800">
           <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 w-full sm:w-auto">
             <button 
-              onClick={() => { setPaisSeleccionado('Colombia'); setTitulares([]); setGoleadores({}); }}
+              onClick={() => setPaisSeleccionado('Colombia')}
               className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${paisSeleccionado === 'Colombia' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400'}`}
             >
               Configurar Colombia
             </button>
             <button 
-              onClick={() => { setPaisSeleccionado('RD Congo'); setTitulares([]); setGoleadores({}); }}
+              onClick={() => setPaisSeleccionado('RD Congo')}
               className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${paisSeleccionado === 'RD Congo' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400'}`}
             >
               Configurar RD Congo
@@ -398,7 +363,9 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
           {jugadoresFiltrados.map((jugador) => {
             const esTitular = titulares.includes(jugador.id);
             const textoIAJugador = textosIA[jugador.id];
-            const infoGol = goleadores[jugador.id] || { hizoGol: false, rangoMinuto: rangosMinutos[0] };
+            
+            // Leemos dinámicamente del cajón correcto según el país actual
+            const infoGol = (paisSeleccionado === 'Colombia' ? goleadoresColombia : goleadoresCongo)[jugador.id] || { hizoGol: false, cantidadGoles: 0, rangosMinutosArray: [] };
 
             return (
               <div 
@@ -410,8 +377,7 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
                     <div className="flex items-center gap-4">
                       <div className="relative">
                         <img 
-                          src={jugador.foto} 
-                          alt={jugador.nombre} 
+                          src={jugador.foto} alt={jugador.nombre} 
                           className="w-14 h-14 rounded-full object-cover border border-slate-700 bg-slate-800"
                           onError={(e)=>{e.target.src="https://via.placeholder.com/150?text="+jugador.nombre.replace(" ", "+")}}
                         />
@@ -450,14 +416,13 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
                 {/* PANEL DE GOLES (Sólo si está en el XI titular) */}
                 {esTitular && (
                   <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-col gap-2">
-                    {/* Selector de cantidad de goles */}
                     <div className="flex items-center justify-between text-xs text-slate-300 select-none">
                       <span className="flex items-center gap-2">⚽ ¿Cuántos goles marcará?</span>
                       
                       <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
                         <button
                           type="button"
-                          onClick={() => handleCantidadGolesChange(jugador.id, Math.max(0, (infoGol.cantidadGoles || 0) - 1))}
+                          onClick={() => handleCantidadGolesChange(jugador.id, Math.max(0, (infoGol.cantidadGoles || 0) - 1), paisSeleccionado)}
                           className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-bold"
                         >
                           -
@@ -467,7 +432,7 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleCantidadGolesChange(jugador.id, (infoGol.cantidadGoles || 0) + 1)}
+                          onClick={() => handleCantidadGolesChange(jugador.id, (infoGol.cantidadGoles || 0) + 1, paisSeleccionado)}
                           className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-bold"
                         >
                           +
@@ -475,9 +440,9 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
                       </div>
                     </div>
 
-                    {/* Renderiza dinámicamente un selector de rango por cada gol elegido */}
+                    {/* Selectores dinámicos por cada gol guardados en el array del respectivo país */}
                     {(infoGol.cantidadGoles || 0) > 0 && (
-                      <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 mt-1 flex flex-col gap-2 animate-fadeIn">
+                      <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 mt-1 flex flex-col gap-2">
                         {Array.from({ length: infoGol.cantidadGoles }).map((_, index) => (
                           <div key={index} className="flex flex-col gap-1">
                             <label className="block text-[10px] text-slate-500">
@@ -485,7 +450,7 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
                             </label>
                             <select
                               value={infoGol.rangosMinutosArray?.[index] || rangosMinutos[0]}
-                              onChange={(e) => handleRangoMultiGolChange(jugador.id, index, e.target.value)}
+                              onChange={(e) => handleRangoMultiGolChange(jugador.id, index, e.target.value, paisSeleccionado)}
                               className="w-full bg-slate-900 text-xs text-amber-400 font-semibold border border-slate-800 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500"
                             >
                               {rangosMinutos.map((rango, idx) => (
@@ -503,7 +468,6 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
           })}
         </section>
   
-
         {/* SECCIÓN 4: CAMBIOS TÁCTICOS CLAVE */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mt-8">
           <h2 className="text-base font-bold text-slate-300 mb-1 flex items-center gap-2">
@@ -515,9 +479,7 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1.5">🔴 Sale del terreno de juego:</label>
               <input 
-                type="text"
-                placeholder="Ej. James Rodríguez"
-                value={jugadorSale}
+                type="text" placeholder="Ej. James Rodríguez" value={jugadorSale}
                 onChange={(e) => setJugadorSale(e.target.value)}
                 className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:outline-none focus:border-amber-500 text-slate-200"
               />
@@ -525,9 +487,7 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1.5">🟢 Entra a revolucionar el partido:</label>
               <input 
-                type="text"
-                placeholder="Ej. Juan Fernando Quintero"
-                value={jugadorEntra}
+                type="text" placeholder="Ej. Juan Fernando Quintero" value={jugadorEntra}
                 onChange={(e) => setJugadorEntra(e.target.value)}
                 className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:outline-none focus:border-amber-500 text-slate-200"
               />
@@ -535,16 +495,15 @@ const handleCantidadGolesChange = (jugadorId, nuevaCantidad) => {
           </div>
         </section>
 
-        {/* BOTÓN FINAL MIGRADO A ENVIARPOLLA */}
+        {/* BOTÓN FINAL DE ENVÍO */}
         <div className="text-center mt-10">
           <button 
             onClick={enviarPolla}
-            className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-base px-10 py-3.5 rounded-xl shadow-lg transition-transform active:scale-95"
+            className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-base px-10 py-3.5 rounded-xl shadow-lg active:scale-95 transition-transform"
           >
             Enviar mi Polla Táctica 🚀
           </button>
         </div>
-
       </main>
     </div>
   );
