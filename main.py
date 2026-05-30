@@ -16,7 +16,7 @@ app.add_middleware(
 )
 
 # ─── CONFIGURACIÓN DE SUPABASE ───
-SUPABASE_URL = "https://qhplmoapbbsnexbrdyjb.supabase.co/rest/v1/"
+SUPABASE_URL = "https://qhplmoapbbsnexbrdyjb.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFocGxtb2FwYmJzbmV4YnJkeWpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MTU0NjcsImV4cCI6MjA5NTM5MTQ2N30.67dGUmB6tGOoatSJcbO4ZM8_I9SsQG0yRDTZtbzfy_A"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
