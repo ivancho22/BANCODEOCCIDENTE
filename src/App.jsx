@@ -21,8 +21,9 @@ export default function App() {
   const [mostrarIAGlobal, setMostrarIAGlobal] = useState(false);
   const [textosIA, setTextosIA] = useState({});
 
-  // Titulares elegidos globales (Guarda los IDs numéricos elegidos de AMBOS países)
-  const [titulares, setTitulares] = useState([]);
+  // 🔥 SOLUCIÓN: Separamos las alineaciones en dos listas completamente independientes
+  const [titularesColombia, setTitularesColombia] = useState([]);
+  const [titularesCongo, setTitularesCongo] = useState([]);
 
   // Datos del cambio clave táctico
   const [jugadorSale, setJugadorSale] = useState('');
@@ -49,8 +50,13 @@ export default function App() {
       return;
     }
 
-    if (titulares.length !== 11) {
-      alert(`Debes completar exactamente 11 titulares. Actualmente tienes ${titulares.length}/11.`);
+    // 🔥 Validamos que CADA país tenga exactamente sus 11 jugadores configurados
+    if (titularesColombia.length !== 11) {
+      alert(`Debes completar los 11 titulares de Colombia. Llevas ${titularesColombia.length}/11.`);
+      return;
+    }
+    if (titularesCongo.length !== 11) {
+      alert(`Debes completar los 11 titulares de RD Congo. Llevas ${titularesCongo.length}/11.`);
       return;
     }
 
@@ -59,7 +65,7 @@ export default function App() {
     Object.keys(goleadoresColombia).forEach((id) => {
       const player_id = Number(id);
       const info = goleadoresColombia[id];
-      if (titulares.includes(player_id) && info && (info.amountGoles || 0) > 0) {
+      if (titularesColombia.includes(player_id) && info && (info.amountGoles || 0) > 0) {
         colombiaLimpio[id] = info;
         totalGolesColombiaAsignados += info.amountGoles;
       }
@@ -70,28 +76,29 @@ export default function App() {
     Object.keys(goleadoresCongo).forEach((id) => {
       const player_id = Number(id);
       const info = goleadoresCongo[id];
-      if (titulares.includes(player_id) && info && (info.amountGoles || 0) > 0) {
+      if (titularesCongo.includes(player_id) && info && (info.amountGoles || 0) > 0) {
         congoLimpio[id] = info;
         totalGolesCongoAsignados += info.amountGoles;
       }
     });
 
     if (totalGolesColombiaAsignados !== Number(golesColombia)) {
-      alert(`⚠️ El marcador de Colombia no coincide:\n\nHas configurado ${golesColombia} gol(es) en el marcador global, pero los goles asignados a tus jugadores suman ${totalGolesColombiaAsignados}.`);
+      alert(`⚠️ El marcador de Colombia no coincide:\n\nHas configurado ${golesColombia} gol(es) en el marcador global, pero los goles asignados a sus jugadores suman ${totalGolesColombiaAsignados}.`);
       return;
     }
 
     if (totalGolesCongoAsignados !== Number(golesCongo)) {
-      alert(`⚠️ El marcador de RD Congo no coincide:\n\nHas configurado ${golesCongo} gol(es) en el marcador global, pero los goles asignados a tus jugadores suman ${totalGolesCongoAsignados}.`);
+      alert(`⚠️ El marcador de RD Congo no coincide:\n\nHas configurado ${golesCongo} gol(es) en el marcador global, pero los goles asignados a sus jugadores suman ${totalGolesCongoAsignados}.`);
       return;
     }
 
+    // Unificamos ambos arreglos de titulares para mandarlos de forma transparente a la API de Supabase
     const payload = {
       nombre: nombre.trim(),
       correo: correo.trim().toLowerCase(),
       goles_colombia: Number(golesColombia),
       goles_congo: Number(golesCongo),
-      titulares: titulares,
+      titulares: [...titularesColombia, ...titularesCongo], // Mandamos los 22 IDs elegidos
       goleadores: { colombia: colombiaLimpio, congo: congoLimpio },
       cambio_sale: jugadorSale,
       cambio_entra: jugadorEntra
@@ -111,17 +118,22 @@ export default function App() {
     }
   }; 
 
-  // Toggle de alineación forzando conversión numérica limpia
+  // 🔥 Lógica de toggling optimizada e independiente para cada selección
   const toggleTitular = (id) => {
     const playerId = Number(id);
-    if (titulares.includes(playerId)) {
-      setTitulares(titulares.filter(tId => tId !== playerId));
+    const esColombia = paisSeleccionado === 'Colombia';
+    
+    const listaActual = esColombia ? titularesColombia : titularesCongo;
+    const setLista = esColombia ? setTitularesColombia : setTitularesCongo;
+
+    if (listaActual.includes(playerId)) {
+      setLista(listaActual.filter(tId => tId !== playerId));
     } else {
-      if (titulares.length >= 11) {
-        alert("¡Ya seleccionaste tus 11 titulares globales! Remueve un jugador antes de agregar otro.");
+      if (listaActual.length >= 11) {
+        alert(`¡Ya seleccionaste los 11 titulares para ${paisSeleccionado}! Remueve un jugador de este equipo si deseas cambiarlo.`);
         return;
       }
-      setTitulares([...titulares, playerId]);
+      setLista([...listaActual, playerId]);
     }
   };
 
@@ -163,17 +175,15 @@ export default function App() {
   }; 
 
   const sugerirAlineacionIA = () => {
-    const sugeridosPais = datosJugadores.filter(j => j.equipo === paisSeleccionado).map(j => Number(j.id));
-    const titularesOtrosPaises = titulares.filter(id => {
-      const jug = datosJugadores.find(j => Number(j.id) === id);
-      return jug && jug.equipo !== paisSeleccionado;
-    });
-
-    setTitulares([...titularesOtrosPaises, ...sugeridosPais].slice(0, 11));
+    const sugeridosPais = datosJugadores.filter(j => j.equipo === paisSeleccionado).map(j => Number(j.id)).slice(0, 11);
+    
     if (paisSeleccionado === 'Colombia') {
+      setTitularesColombia(sugeridosPais);
       setGoleadoresColombia({ 10: { hizoGol: true, amountGoles: 1, cantidadGoles: 1, rangosMinutosArray: ["61' - 75' (Segundo Tiempo)"] } });
       setGolesColombia(1); setGolesCongo(0);
       setJugadorSale("James Rodríguez"); setJugadorEntra("Juan Fernando Quintero");
+    } else {
+      setTitularesCongo(sugeridosPais);
     }
   }; 
 
@@ -181,8 +191,11 @@ export default function App() {
     setTextosIA(prev => ({ ...prev, [id]: textosIA[id] ? "" : `💡 Análisis: ${stats}` }));
   };
 
-  // Filtrado reactivo estricto por la pestaña activa
+  // Filtrado estricto por la pestaña activa
   const jugadoresFiltrados = datosJugadores.filter(j => j.equipo === paisSeleccionado);
+  
+  // Contador reactivo según el país en el que esté parado el usuario
+  const conteoTitularesActual = paisSeleccionado === 'Colombia' ? titularesColombia.length : titularesCongo.length;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-12">
@@ -224,7 +237,7 @@ export default function App() {
 
         {/* TABS DE SELECCIÓN */}
         <section className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800">
-          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 distinct-tabs">
+          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button type="button" onClick={() => setPaisSeleccionado('Colombia')} className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${paisSeleccionado === 'Colombia' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`}>
               Configurar Colombia
             </button>
@@ -233,114 +246,68 @@ export default function App() {
             </button>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400">Elegidos: <strong className="text-amber-500 text-sm">{titulares.length}/11</strong></span>
+            <span className="text-xs text-slate-400">Elegidos en {paisSeleccionado}: <strong className="text-amber-500 text-sm">{conteoTitularesActual}/11</strong></span>
             <button type="button" onClick={sugerirAlineacionIA} className="bg-purple-950/80 border border-purple-800 text-purple-300 text-xs px-3 py-1.5 rounded-xl">✨ Autocompletar con IA</button>
           </div>
         </section>
 
-        {/* REJILLA DE JUGADORES (Mantiene el resaltado de forma persistente) */}
         {/* REJILLA DE JUGADORES */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {jugadoresFiltrados.map((jugador) => {
-            // 1. Forzamos la verificación del ID convirtiéndolo a número
-            const esTitular = titulares.includes(Number(jugador.id));
-            
-            // 2. Extraemos la información de goles del equipo correspondiente de forma dinámica
-            const infoGol = (paisSeleccionado === 'Colombia' ? goleadoresColombia : goleadoresCongo)[jugador.id] || { amountGoles: 0, rangosMinutosArray: [] };
+            // Buscamos si está seleccionado evaluando la lista correcta según la pestaña actual
+            const esColombia = paisSeleccionado === 'Colombia';
+            const esTitular = esColombia 
+              ? titularesColombia.includes(Number(jugador.id)) 
+              : titularesCongo.includes(Number(jugador.id));
+
+            const infoGol = (esColombia ? goleadoresColombia : goleadoresCongo)[jugador.id] || { amountGoles: 0, rangosMinutosArray: [] };
 
             return (
               <div 
-                // 🔥 CRUCIAL 1: Al meter el país en la key, obligamos a React a destruir la tarjeta vieja 
-                // y crear una nueva al cambiar de pestaña. Así Banza JAMÁS se quedará pegado en Colombia.
                 key={`${paisSeleccionado}-${jugador.id}`} 
-                
-                // 🔥 CRUCIAL 2: Evaluamos 'esTitular'. Si el jugador está seleccionado en el estado global,
-                // el borde amarillo se quedará pintado fijamente aunque vayas a la otra pestaña y regreses.
-                className={`bg-slate-900 border rounded-xl p-4 flex flex-col justify-between shadow-md transition-all ${
-                  esTitular 
-                    ? 'border-amber-500 ring-2 ring-amber-500/40 bg-slate-900 shadow-amber-500/5' 
-                    : 'border-slate-800 hover:border-slate-700'
-                }`}
+                className={`bg-slate-900 border rounded-xl p-4 flex flex-col justify-between shadow-md transition-all ${esTitular ? 'border-amber-500 ring-2 ring-amber-500/40 bg-slate-900 shadow-amber-500/5' : 'border-slate-800'}`}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="relative">
-                      <img 
-                        src={jugador.foto} 
-                        alt={jugador.nombre} 
-                        className="w-14 h-14 rounded-full object-cover border border-slate-700 bg-slate-800" 
-                        onError={(e) => { e.target.src = "https://via.placeholder.com/150?text=" + jugador.nombre.replace(" ", "+"); }}
-                      />
-                      {esTitular && (
-                        <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow">XI</span>
-                      )}
+                      <img src={jugador.foto} alt={jugador.nombre} className="w-14 h-14 rounded-full object-cover border border-slate-700 bg-slate-800" />
+                      {esTitular && <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow">XI</span>}
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-white">{jugador.nombre}</h3>
                       <p className="text-[11px] text-slate-400">{jugador.posicion}</p>
-                      <button 
-                        type="button" 
-                        onClick={() => consultarIA(jugador.id, jugador.statsIA)} 
-                        className="mt-1 bg-purple-950/40 text-purple-300 text-[10px] px-2 py-0.5 rounded-full hover:bg-purple-900 transition"
-                      >
+                      <button type="button" onClick={() => consultarIA(jugador.id, jugador.statsIA)} className="mt-1 bg-purple-950/40 text-purple-300 text-[10px] px-2 py-0.5 rounded-full">
                         {textosIA[jugador.id] ? 'Ocultar' : 'Análisis IA'}
                       </button>
                     </div>
                   </div>
-                  
-                  <button 
-                    type="button" 
-                    onClick={() => toggleTitular(jugador.id)} 
-                    className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${
-                      esTitular ? 'bg-amber-500 text-slate-950 shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
+                  <button type="button" onClick={() => toggleTitular(jugador.id)} className={`text-xs font-bold px-3 py-1.5 rounded-lg ${esTitular ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}>
                     {esTitular ? 'Quitar' : 'Alinear'}
                   </button>
                 </div>
 
-                {/* Desplegable de Análisis de IA por jugador */}
                 {textosIA[jugador.id] && (
-                  <div className="mt-2 text-[11px] bg-purple-950/20 border border-purple-900/30 text-purple-200 p-2 rounded-lg italic">
-                    {textosIA[jugador.id]}
-                  </div>
+                  <div className="mt-2 text-[11px] bg-purple-950/20 border border-purple-900/30 text-purple-200 p-2 rounded-lg italic">{textosIA[jugador.id]}</div>
                 )}
 
-                {/* PANEL DE GOLES (Persistente si el jugador está en el XI) */}
+                {/* CONTROLES DE GOLES */}
                 {esTitular && (
                   <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-xs text-slate-300 select-none">
+                    <div className="flex items-center justify-between text-xs text-slate-300">
                       <span>⚽ ¿Cuántos goles marcará?</span>
                       <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
-                        <button 
-                          type="button" 
-                          onClick={() => handleCantidadGolesChange(jugador.id, Math.max(0, (infoGol.amountGoles || 0) - 1), paisSeleccionado)} 
-                          className="w-6 h-6 flex items-center justify-center rounded-md font-bold text-slate-400 hover:bg-slate-800 hover:text-white"
-                        >
-                          -
-                        </button>
+                        <button type="button" onClick={() => handleCantidadGolesChange(jugador.id, Math.max(0, (infoGol.amountGoles || 0) - 1), paisSeleccionado)} className="w-6 h-6 flex items-center justify-center rounded-md font-bold text-slate-400">-</button>
                         <span className="w-6 text-center font-bold text-amber-500">{infoGol.amountGoles || 0}</span>
-                        <button 
-                          type="button" 
-                          onClick={() => handleCantidadGolesChange(jugador.id, (infoGol.amountGoles || 0) + 1, paisSeleccionado)} 
-                          className="w-6 h-6 flex items-center justify-center rounded-md font-bold text-slate-400 hover:bg-slate-800 hover:text-white"
-                        >
-                          +
-                        </button>
+                        <button type="button" onClick={() => handleCantidadGolesChange(jugador.id, (infoGol.amountGoles || 0) + 1, paisSeleccionado)} className="w-6 h-6 flex items-center justify-center rounded-md font-bold text-slate-400">+</button>
                       </div>
                     </div>
 
-                    {/* Selectores de minutos por cada gol marcado */}
                     {(infoGol.amountGoles || 0) > 0 && (
                       <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 mt-1 flex flex-col gap-2">
                         {Array.from({ length: infoGol.amountGoles }).map((_, index) => (
                           <div key={index} className="flex flex-col gap-1">
                             <label className="block text-[10px] text-slate-500">Minuto Gol #{index + 1}:</label>
-                            <select 
-                              value={infoGol.rangosMinutosArray?.[index] || rangosMinutos[0]} 
-                              onChange={(e) => handleRangoMultiGolChange(jugador.id, index, e.target.value, paisSeleccionado)} 
-                              className="w-full bg-slate-900 text-xs text-amber-400 font-semibold border border-slate-800 rounded px-2 py-1.5 focus:outline-none focus:border-amber-500"
-                            >
+                            <select value={infoGol.rangosMinutosArray?.[index] || rangosMinutos[0]} onChange={(e) => handleRangoMultiGolChange(jugador.id, index, e.target.value, paisSeleccionado)} className="w-full bg-slate-900 text-xs text-amber-400 font-semibold border border-slate-800 rounded px-2 py-1">
                               {rangosMinutos.map((rango, idx) => <option key={idx} value={rango}>{rango}</option>)}
                             </select>
                           </div>
