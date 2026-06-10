@@ -92,26 +92,37 @@ export default function App() {
       return;
     }
 
-    // Unificamos ambos arreglos de titulares para mandarlos de forma transparente a la API de Supabase
+    // MODIFICADO: Estructuramos el payload plano con títulos legibles para las columnas de Formspark/Excel
     const payload = {
-      nombre: nombre.trim(),
-      correo: correo.trim().toLowerCase(),
-      goles_colombia: Number(golesColombia),
-      goles_congo: Number(golesCongo),
-      titulares: [...titularesColombia, ...titularesCongo], // Mandamos los 22 IDs elegidos
-      goleadores: { colombia: colombiaLimpio, congo: congoLimpio },
-      cambio_sale: jugadorSale,
-      cambio_entra: jugadorEntra
+      "Fecha Registro": new Date().toLocaleString(),
+      "Nombre Participante": nombre.trim(),
+      "Correo": correo.trim().toLowerCase(),
+      "Goles Colombia": Number(golesColombia),
+      "Goles RD Congo": Number(golesCongo),
+      "Titulares Colombia": titularesColombia.join(', '),
+      "Titulares RD Congo": titularesCongo.join(', '),
+      "Detalle Goleadores Colombia": JSON.stringify(colombiaLimpio),
+      "Detalle Goleadores Congo": JSON.stringify(congoLimpio),
+      "Cambio - Sale": jugadorSale,
+      "Cambio - Entra": jugadorEntra
     };
 
     try {
-      const response = await fetch('https://bancodeoccidente-fh4l.onrender.com/api/polla', {
+      // MODIFICADO: Apuntamos directamente a tu endpoint i0YeFU5pK de Formspark
+      const response = await fetch('https://submit-form.com/i0YeFU5pK', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(payload)
       });
-      const resultado = await response.json();
-      if (!response.ok) { alert(`⚠️ ${resultado.detail}`); return; }
+
+      if (!response.ok) { 
+        alert("⚠️ No se pudo registrar la polla. Por favor intenta de nuevo."); 
+        return; 
+      }
+      
       alert("🎉 ¡Tu polla táctica ha sido registrada con éxito!");
     } catch (error) {
       alert("Hubo un error de red al enviar la polla.");
@@ -254,7 +265,6 @@ export default function App() {
         {/* REJILLA DE JUGADORES */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {jugadoresFiltrados.map((jugador) => {
-            // Buscamos si está seleccionado evaluando la lista correcta según la pestaña actual
             const esColombia = paisSeleccionado === 'Colombia';
             const esTitular = esColombia 
               ? titularesColombia.includes(Number(jugador.id)) 
