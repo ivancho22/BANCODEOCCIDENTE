@@ -39,16 +39,119 @@ export default function App() {
   ];
 
   const enviarPolla = async () => {
-    if (!nombre.trim() || !correo.trim()) {
-      alert("Por favor, ingresa tu nombre y correo electrónico.");
-      return;
-    }
+      if (!nombre.trim() || !correo.trim()) {
+        alert("Por favor, ingresa tu nombre y correo electrónico.");
+        return;
+      }
 
-    const dominioRequerido = "@bancodeoccidente.com.co";
-    if (!correo.toLowerCase().endsWith(dominioRequerido)) {
-      alert(`Acceso denegado. Solo se permiten correos corporativos con la extensión ${dominioRequerido}`);
-      return;
-    }
+      const dominioRequerido = "@bancodeoccidente.com.co";
+      if (!correo.toLowerCase().endsWith(dominioRequerido)) {
+        alert(`Acceso denegado. Solo se permiten correos corporativos con la extensión ${dominioRequerido}`);
+        return;
+      }
+
+      // Validamos que CADA país tenga exactamente sus 11 jugadores configurados
+      if (titularesColombia.length !== 11) {
+        alert(`Debes completar los 11 titulares de Colombia. Llevas ${titularesColombia.length}/11.`);
+        return;
+      }
+      if (titularesCongo.length !== 11) {
+        alert(`Debes completar los 11 titulares de RD Congo. Llevas ${titularesCongo.length}/11.`);
+        return;
+      }
+
+      let totalGolesColombiaAsignados = 0;
+      const colombiaGolesArray = [];
+      Object.keys(goleadoresColombia).forEach((id) => {
+        const player_id = Number(id);
+        const info = goleadoresColombia[id];
+        if (titularesColombia.includes(player_id) && info && (info.amountGoles || 0) > 0) {
+          totalGolesColombiaAsignados += info.amountGoles;
+          // Buscamos el nombre real del jugador en el diccionario importado
+          const jugadorObj = datosJugadores.find(j => Number(j.id) === player_id);
+          const nombreJugador = jugadorObj ? jugadorObj.nombre : `Jugador #${id}`;
+          const minutos = info.rangosMinutosArray ? info.rangosMinutosArray.join(', ') : '';
+          colombiaGolesArray.push(`${nombreJugador} (${info.amountGoles} Gol(es) - Min: ${minutos})`);
+        }
+      });
+
+      let totalGolesCongoAsignados = 0;
+      const congoGolesArray = [];
+      Object.keys(goleadoresCongo).forEach((id) => {
+        const player_id = Number(id);
+        const info = goleadoresCongo[id];
+        if (titularesCongo.includes(player_id) && info && (info.amountGoles || 0) > 0) {
+          totalGolesCongoAsignados += info.amountGoles;
+          // Buscamos el nombre real del jugador en el diccionario importado
+          const jugadorObj = datosJugadores.find(j => Number(j.id) === player_id);
+          const nombreJugador = jugadorObj ? jugadorObj.nombre : `Jugador #${id}`;
+          const minutos = info.rangosMinutosArray ? info.rangosMinutosArray.join(', ') : '';
+          congoGolesArray.push(`${nombreJugador} (${info.amountGoles} Gol(es) - Min: ${minutos})`);
+        }
+      });
+
+      if (totalGolesColombiaAsignados !== Number(golesColombia)) {
+        alert(`⚠️ El marcador de Colombia no coincide:\n\nHas configurado ${golesColombia} gol(es) en el marcador global, pero los goles asignados a sus jugadores suman ${totalGolesColombiaAsignados}.`);
+        return;
+      }
+
+      if (totalGolesCongoAsignados !== Number(golesCongo)) {
+        alert(`⚠️ El marcador de RD Congo no coincide:\n\nHas configurado ${golesCongo} gol(es) en el marcador global, pero los goles asignados a sus jugadores suman ${totalGolesCongoAsignados}.`);
+        return;
+      }
+
+      // --- PROCESAMIENTO DE TEXTOS LIMPIOS PARA EXCEL ---
+      // Mapeamos los arrays de IDs para sacar los strings con los nombres reales de los 11 titulares
+      const nombresTitularesCol = titularesColombia.map(id => {
+        const j = datosJugadores.find(jugador => Number(jugador.id) === id);
+        return j ? j.nombre : id;
+      }).join(', ');
+
+      const nombresTitularesCgo = titularesCongo.map(id => {
+        const j = datosJugadores.find(jugador => Number(jugador.id) === id);
+        return j ? j.nombre : id;
+      }).join(', ');
+
+      const stringGolesCol = colombiaGolesArray.length > 0 ? colombiaGolesArray.join(' || ') : "Ninguno";
+      const stringGolesCgo = congoGolesArray.length > 0 ? congoGolesArray.join(' || ') : "Ninguno";
+      
+      const marcadorGlobalTexto = `${golesColombia} - ${golesCongo}`;
+      const cambioEstrategicoTexto = `Sale: ${jugadorSale.trim() || 'N/A'} | Entra: ${jugadorEntra.trim() || 'N/A'}`;
+
+      // --- CONFIGURACIÓN DE FORM DATA (GOOGLE FORMS ENDPOINT) ---
+      const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLScf4-_RH61gx1VM4uLRgTISgTBq6Zoeo152TFkXQapdy-LqCg/formResponse";
+
+      try {
+        const formData = new URLSearchParams();
+
+        // Inyección exacta usando tus entry.xxxx extraídos de la consola
+        formData.append("entry.64425724", nombre.trim());                  // NOMBRE
+        formData.append("entry.984673594", correo.trim().toLowerCase());    // Correo Participante
+        formData.append("entry.69447712", marcadorGlobalTexto);            // Marcador Global
+        formData.append("entry.777275715", nombresTitularesCol);           // Titulares Colombia
+        formData.append("entry.630945785", stringGolesCol);                 // Goles Jugadores Colombia
+        formData.append("entry.31121580", nombresTitularesCgo);            // Titulares Congo
+        formData.append("entry.346530533", stringGolesCgo);                 // Goles Jugadores Congo
+        formData.append("entry.206100259", "Configurado en Goles");         // Minuto Gol Nro 1 (Se integra arriba)
+        formData.append("entry.1554639606", cambioEstrategicoTexto);        // Cambios Tácticos
+
+        // Envío HTTP POST en modo silencioso (no-cors)
+        await fetch(GOOGLE_FORM_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: formData.toString()
+        });
+
+        alert("🎉 ¡Tu polla táctica ha sido registrada con éxito en el Excel corporativo!");
+        
+      } catch (error) {
+        console.error("Error al enviar a Google Forms:", error);
+        alert("⚠️ Hubo un error de red al procesar el registro. Intenta de nuevo.");
+      }
+    };
 
     // 🔥 Validamos que CADA país tenga exactamente sus 11 jugadores configurados
     if (titularesColombia.length !== 11) {
