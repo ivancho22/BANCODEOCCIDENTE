@@ -207,11 +207,11 @@ export default function App() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">Nombre Completo:</label>
-              <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:border-amber-500 text-slate-200" />
+              <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre Apellido" className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:border-amber-500 text-slate-200" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">Correo Corporativo:</label>
-              <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:border-amber-500 text-slate-200" />
+              <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="usuario@bancodeoccidente.com.co" className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs focus:border-amber-500 text-slate-200" />
             </div>
           </div>
         </section>
