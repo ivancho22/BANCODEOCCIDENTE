@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { datosJugadores, analisisPartidoIA } from './datosJugadores';
 export default function App() {
+  // tiempo de espera
+  const [cargando, setCargando] = useState(false);
   // Datos del participante
   const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
@@ -78,6 +80,7 @@ export default function App() {
       alert(`⚠️ El marcador de RD Congo no coincide:\n\nHas configurado ${golesCongo} gol(es) en el marcador global, pero los goles asignados a sus jugadores suman ${totalGolesCongoAsignados}.`);
       return;
     }
+    setCargando(true); // Activa el estado de carga
     // Unificamos ambos arreglos de titulares para mandarlos de forma transparente a la API de Supabase
     const payload = {
       nombre: nombre.trim(),
@@ -96,10 +99,15 @@ export default function App() {
         body: JSON.stringify(payload)
       });
       const resultado = await response.json();
-      if (!response.ok) { alert(`⚠️ ${resultado.detail}`); return; }
-      alert("🎉 ¡Tu polla táctica ha sido registrada con éxito!");
+      if (!response.ok) {
+            alert(`⚠️ ${resultado.detail}`);
+        } else {
+            alert("🎉 ¡Tu polla táctica ha sido registrada con éxito!");
+        }
     } catch (error) {
-      alert("Hubo un error de red al enviar la polla.");
+        alert("Hubo un error de red al enviar la polla.");
+    } finally {
+        setCargando(false); // Desactiva el estado de carga pase lo que pase
     }
   }; 
   // 🔥 Lógica de toggling optimizada e independiente para cada selección
@@ -296,7 +304,18 @@ export default function App() {
           </div>
         </section>
         <div className="text-center mt-10">
-          <button type="button" onClick={enviarPolla} className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-base px-10 py-3.5 rounded-xl shadow-lg">Enviar mi Polla Táctica 🚀</button>
+          <button 
+            type="button" 
+            onClick={enviarPolla} 
+            disabled={cargando} // Deshabilita el botón mientras carga
+            className={`font-extrabold text-base px-10 py-3.5 rounded-xl shadow-lg transition-all ${
+              cargando 
+                ? 'bg-slate-700 text-slate-400 cursor-not-allowed' 
+                : 'bg-amber-500 hover:bg-amber-600 text-slate-950'
+            }`}
+          >
+            {cargando ? 'Procesando registro...' : 'Enviar mi Polla Táctica 🚀'}
+          </button>
         </div>
       </main>
     </div>
