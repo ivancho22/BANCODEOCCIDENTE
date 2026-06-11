@@ -211,7 +211,7 @@ export default function App() {
             type="button" 
             onClick={() => {
               setMostrarAnalisisGlobal(!mostrarAnalisisGlobal);
-              setTextoAnalisisGlobal("💡 Análisis Táctico: Ambos equipos muestran una tendencia fuerte al ataque por las bandas.");
+              setTextoAnalisisGlobal("💡 Colombia, que prioriza un juego asociativo y de posesión, deberá superar la resistencia de una RD Congo que se organiza en un bloque defensivo sólido (5-3-2) y apuesta por transiciones rápidas capitalizando la potencia física y la velocidad de sus carrileros, lo que convierte a este duelo en una partida de ajedrez táctico donde cualquier error en la salida de balón colombiana será una oportunidad de oro para el contragolpe africano, exigiendo a los dirigidos por Néstor Lorenzo máxima precisión en el último tercio para romper el cerrojo defensivo y evitar que el factor físico del rival les arrebate el control del partido.");
             }}
             className="bg-purple-900/50 border border-purple-700 text-purple-200 text-sm font-bold px-6 py-2 rounded-full hover:bg-purple-800 transition-all"
           >
