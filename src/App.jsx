@@ -1,34 +1,28 @@
+
 import React, { useState } from 'react';
 import { datosJugadores, analisisPartidoIA } from './datosJugadores';
-
 export default function App() {
   // Datos del participante
   const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
-
   // Estados persistentes separados para los goles por equipo
   const [goleadoresColombia, setGoleadoresColombia] = useState({});
   const [goleadoresCongo, setGoleadoresCongo] = useState({});
-
   // Estados para el marcador global
   const [golesColombia, setGolesColombia] = useState(0);
   const [golesCongo, setGolesCongo] = useState(0);
   
   // Filtro de país actual para la interfaz
   const [paisSeleccionado, setPaisSeleccionado] = useState('Colombia');
-
   // Estados de IA
   const [mostrarIAGlobal, setMostrarIAGlobal] = useState(false);
   const [textosIA, setTextosIA] = useState({});
-
   // 🔥 SOLUCIÓN: Separamos las alineaciones en dos listas completamente independientes
   const [titularesColombia, setTitularesColombia] = useState([]);
   const [titularesCongo, setTitularesCongo] = useState([]);
-
   // Datos del cambio clave táctico
   const [jugadorSale, setJugadorSale] = useState('');
   const [jugadorEntra, setJugadorEntra] = useState('');
-
   const rangosMinutos = [
     "0' - 15' (Inicio)",
     "16' - 30' (Primer Tiempo)",
@@ -37,122 +31,16 @@ export default function App() {
     "61' - 75' (Segundo Tiempo)",
     "76' - 90' (Agonía del partido)"
   ];
-
   const enviarPolla = async () => {
-      if (!nombre.trim() || !correo.trim()) {
-        alert("Por favor, ingresa tu nombre y correo electrónico.");
-        return;
-      }
-
-      const dominioRequerido = "@bancodeoccidente.com.co";
-      if (!correo.toLowerCase().endsWith(dominioRequerido)) {
-        alert(`Acceso denegado. Solo se permiten correos corporativos con la extensión ${dominioRequerido}`);
-        return;
-      }
-
-      // Validamos que CADA país tenga exactamente sus 11 jugadores configurados
-      if (titularesColombia.length !== 11) {
-        alert(`Debes completar los 11 titulares de Colombia. Llevas ${titularesColombia.length}/11.`);
-        return;
-      }
-      if (titularesCongo.length !== 11) {
-        alert(`Debes completar los 11 titulares de RD Congo. Llevas ${titularesCongo.length}/11.`);
-        return;
-      }
-
-      let totalGolesColombiaAsignados = 0;
-      const colombiaGolesArray = [];
-      Object.keys(goleadoresColombia).forEach((id) => {
-        const player_id = Number(id);
-        const info = goleadoresColombia[id];
-        if (titularesColombia.includes(player_id) && info && (info.amountGoles || 0) > 0) {
-          totalGolesColombiaAsignados += info.amountGoles;
-          // Buscamos el nombre real del jugador en el diccionario importado
-          const jugadorObj = datosJugadores.find(j => Number(j.id) === player_id);
-          const nombreJugador = jugadorObj ? jugadorObj.nombre : `Jugador #${id}`;
-          const minutos = info.rangosMinutosArray ? info.rangosMinutosArray.join(', ') : '';
-          colombiaGolesArray.push(`${nombreJugador} (${info.amountGoles} Gol(es) - Min: ${minutos})`);
-        }
-      });
-
-      let totalGolesCongoAsignados = 0;
-      const congoGolesArray = [];
-      Object.keys(goleadoresCongo).forEach((id) => {
-        const player_id = Number(id);
-        const info = goleadoresCongo[id];
-        if (titularesCongo.includes(player_id) && info && (info.amountGoles || 0) > 0) {
-          totalGolesCongoAsignados += info.amountGoles;
-          // Buscamos el nombre real del jugador en el diccionario importado
-          const jugadorObj = datosJugadores.find(j => Number(j.id) === player_id);
-          const nombreJugador = jugadorObj ? jugadorObj.nombre : `Jugador #${id}`;
-          const minutos = info.rangosMinutosArray ? info.rangosMinutosArray.join(', ') : '';
-          congoGolesArray.push(`${nombreJugador} (${info.amountGoles} Gol(es) - Min: ${minutos})`);
-        }
-      });
-
-      if (totalGolesColombiaAsignados !== Number(golesColombia)) {
-        alert(`⚠️ El marcador de Colombia no coincide:\n\nHas configurado ${golesColombia} gol(es) en el marcador global, pero los goles asignados a sus jugadores suman ${totalGolesColombiaAsignados}.`);
-        return;
-      }
-
-      if (totalGolesCongoAsignados !== Number(golesCongo)) {
-        alert(`⚠️ El marcador de RD Congo no coincide:\n\nHas configurado ${golesCongo} gol(es) en el marcador global, pero los goles asignados a sus jugadores suman ${totalGolesCongoAsignados}.`);
-        return;
-      }
-
-      // --- PROCESAMIENTO DE TEXTOS LIMPIOS PARA EXCEL ---
-      // Mapeamos los arrays de IDs para sacar los strings con los nombres reales de los 11 titulares
-      const nombresTitularesCol = titularesColombia.map(id => {
-        const j = datosJugadores.find(jugador => Number(jugador.id) === id);
-        return j ? j.nombre : id;
-      }).join(', ');
-
-      const nombresTitularesCgo = titularesCongo.map(id => {
-        const j = datosJugadores.find(jugador => Number(jugador.id) === id);
-        return j ? j.nombre : id;
-      }).join(', ');
-
-      const stringGolesCol = colombiaGolesArray.length > 0 ? colombiaGolesArray.join(' || ') : "Ninguno";
-      const stringGolesCgo = congoGolesArray.length > 0 ? congoGolesArray.join(' || ') : "Ninguno";
-      
-      const marcadorGlobalTexto = `${golesColombia} - ${golesCongo}`;
-      const cambioEstrategicoTexto = `Sale: ${jugadorSale.trim() || 'N/A'} | Entra: ${jugadorEntra.trim() || 'N/A'}`;
-
-      // --- CONFIGURACIÓN DE FORM DATA (GOOGLE FORMS ENDPOINT) ---
-      const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLScf4-_RH61gx1VM4uLRgTISgTBq6Zoeo152TFkXQapdy-LqCg/formResponse";
-
-      try {
-        const formData = new URLSearchParams();
-
-        // Inyección exacta usando tus entry.xxxx extraídos de la consola
-        formData.append("entry.64425724", nombre.trim());                  // NOMBRE
-        formData.append("entry.984673594", correo.trim().toLowerCase());    // Correo Participante
-        formData.append("entry.69447712", marcadorGlobalTexto);            // Marcador Global
-        formData.append("entry.777275715", nombresTitularesCol);           // Titulares Colombia
-        formData.append("entry.630945785", stringGolesCol);                 // Goles Jugadores Colombia
-        formData.append("entry.31121580", nombresTitularesCgo);            // Titulares Congo
-        formData.append("entry.346530533", stringGolesCgo);                 // Goles Jugadores Congo
-        formData.append("entry.206100259", "Configurado en Goles");         // Minuto Gol Nro 1 (Se integra arriba)
-        formData.append("entry.1554639606", cambioEstrategicoTexto);        // Cambios Tácticos
-
-        // Envío HTTP POST en modo silencioso (no-cors)
-        await fetch(GOOGLE_FORM_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-          },
-          body: formData.toString()
-        });
-
-        alert("🎉 ¡Tu polla táctica ha sido registrada con éxito en el Excel corporativo!");
-        
-      } catch (error) {
-        console.error("Error al enviar a Google Forms:", error);
-        alert("⚠️ Hubo un error de red al procesar el registro. Intenta de nuevo.");
-      }
-    };
-
+    if (!nombre.trim() || !correo.trim()) {
+      alert("Por favor, ingresa tu nombre y correo electrónico.");
+      return;
+    }
+    const dominioRequerido = "@bancodeoccidente.com.co";
+    if (!correo.toLowerCase().endsWith(dominioRequerido)) {
+      alert(`Acceso denegado. Solo se permiten correos corporativos con la extensión ${dominioRequerido}`);
+      return;
+    }
     // 🔥 Validamos que CADA país tenga exactamente sus 11 jugadores configurados
     if (titularesColombia.length !== 11) {
       alert(`Debes completar los 11 titulares de Colombia. Llevas ${titularesColombia.length}/11.`);
@@ -162,7 +50,6 @@ export default function App() {
       alert(`Debes completar los 11 titulares de RD Congo. Llevas ${titularesCongo.length}/11.`);
       return;
     }
-
     const colombiaLimpio = {};
     let totalGolesColombiaAsignados = 0;
     Object.keys(goleadoresColombia).forEach((id) => {
@@ -173,7 +60,6 @@ export default function App() {
         totalGolesColombiaAsignados += info.amountGoles;
       }
     });
-
     const congoLimpio = {};
     let totalGolesCongoAsignados = 0;
     Object.keys(goleadoresCongo).forEach((id) => {
@@ -184,54 +70,38 @@ export default function App() {
         totalGolesCongoAsignados += info.amountGoles;
       }
     });
-
     if (totalGolesColombiaAsignados !== Number(golesColombia)) {
       alert(`⚠️ El marcador de Colombia no coincide:\n\nHas configurado ${golesColombia} gol(es) en el marcador global, pero los goles asignados a sus jugadores suman ${totalGolesColombiaAsignados}.`);
       return;
     }
-
     if (totalGolesCongoAsignados !== Number(golesCongo)) {
       alert(`⚠️ El marcador de RD Congo no coincide:\n\nHas configurado ${golesCongo} gol(es) en el marcador global, pero los goles asignados a sus jugadores suman ${totalGolesCongoAsignados}.`);
       return;
     }
-
-    // MODIFICADO: Estructuramos el payload plano con títulos legibles para las columnas de Formspark/Excel
+    // Unificamos ambos arreglos de titulares para mandarlos de forma transparente a la API de Supabase
     const payload = {
-      "Fecha Registro": new Date().toLocaleString(),
-      "Nombre Participante": nombre.trim(),
-      "Correo": correo.trim().toLowerCase(),
-      "Goles Colombia": Number(golesColombia),
-      "Goles RD Congo": Number(golesCongo),
-      "Titulares Colombia": titularesColombia.join(', '),
-      "Titulares RD Congo": titularesCongo.join(', '),
-      "Detalle Goleadores Colombia": JSON.stringify(colombiaLimpio),
-      "Detalle Goleadores Congo": JSON.stringify(congoLimpio),
-      "Cambio - Sale": jugadorSale,
-      "Cambio - Entra": jugadorEntra
+      nombre: nombre.trim(),
+      correo: correo.trim().toLowerCase(),
+      goles_colombia: Number(golesColombia),
+      goles_congo: Number(golesCongo),
+      titulares: [...titularesColombia, ...titularesCongo], // Mandamos los 22 IDs elegidos
+      goleadores: { colombia: colombiaLimpio, congo: congoLimpio },
+      cambio_sale: jugadorSale,
+      cambio_entra: jugadorEntra
     };
-
     try {
-      // MODIFICADO: Apuntamos directamente a tu endpoint i0YeFU5pK de Formspark
-      const response = await fetch('https://submit-form.com/i0YeFU5pK', {
+      const response = await fetch('https://bancodeoccidente-fh4l.onrender.com/api/polla', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
-      if (!response.ok) { 
-        alert("⚠️ No se pudo registrar la polla. Por favor intenta de nuevo."); 
-        return; 
-      }
-      
+      const resultado = await response.json();
+      if (!response.ok) { alert(`⚠️ ${resultado.detail}`); return; }
       alert("🎉 ¡Tu polla táctica ha sido registrada con éxito!");
     } catch (error) {
       alert("Hubo un error de red al enviar la polla.");
     }
   }; 
-
   // 🔥 Lógica de toggling optimizada e independiente para cada selección
   const toggleTitular = (id) => {
     const playerId = Number(id);
@@ -239,7 +109,6 @@ export default function App() {
     
     const listaActual = esColombia ? titularesColombia : titularesCongo;
     const setLista = esColombia ? setTitularesColombia : setTitularesCongo;
-
     if (listaActual.includes(playerId)) {
       setLista(listaActual.filter(tId => tId !== playerId));
     } else {
@@ -250,11 +119,9 @@ export default function App() {
       setLista([...listaActual, playerId]);
     }
   };
-
   const handleCantidadGolesChange = (jugadorId, nuevaCantidad, equipo) => {
     const esColombia = equipo === 'Colombia';
     const setEstado = esColombia ? setGoleadoresColombia : setGoleadoresCongo;
-
     setEstado(prev => {
       const infoActual = prev[jugadorId] || { hizoGol: false, amountGoles: 0, rangosMinutosArray: [] };
       let nuevosRangos = [...(infoActual.rangosMinutosArray || [])];
@@ -264,7 +131,6 @@ export default function App() {
       } else {
         nuevosRangos = nuevosRangos.slice(0, nuevaCantidad);
       }
-
       return {
         ...prev,
         [jugadorId]: {
@@ -276,7 +142,6 @@ export default function App() {
       };
     });
   };
-
   const handleRangoMultiGolChange = (jugadorId, golIndex, nuevoRango, equipo) => {
     const esColombia = equipo === 'Colombia';
     const setEstado = esColombia ? setGoleadoresColombia : setGoleadoresCongo;
@@ -287,7 +152,6 @@ export default function App() {
       return { ...prev, [jugadorId]: { ...infoActual, rangosMinutosArray: nuevosRangos } };
     });
   }; 
-
   const sugerirAlineacionIA = () => {
     const sugeridosPais = datosJugadores.filter(j => j.equipo === paisSeleccionado).map(j => Number(j.id)).slice(0, 11);
     
@@ -300,24 +164,20 @@ export default function App() {
       setTitularesCongo(sugeridosPais);
     }
   }; 
-
   const consultarIA = (id, stats) => {
     setTextosIA(prev => ({ ...prev, [id]: textosIA[id] ? "" : `💡 Análisis: ${stats}` }));
   };
-
   // Filtrado estricto por la pestaña activa
   const jugadoresFiltrados = datosJugadores.filter(j => j.equipo === paisSeleccionado);
   
   // Contador reactivo según el país en el que esté parado el usuario
   const conteoTitularesActual = paisSeleccionado === 'Colombia' ? titularesColombia.length : titularesCongo.length;
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-12">
       <header className="bg-slate-900 border-b border-slate-800 py-6 text-center shadow-lg">
         <h1 className="text-3xl md:text-4xl font-extrabold text-amber-500 tracking-wide">POLLA FUTBOLERA BdO</h1>
         <p className="text-slate-400 text-sm mt-1">Colombia vs RD Congo</p>
       </header>
-
       <main className="max-w-4xl mx-auto px-4 mt-8">
         {/* MARCADOR GLOBAL */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mb-8">
@@ -334,7 +194,6 @@ export default function App() {
             </div>
           </div>
         </section>
-
         {/* PARTICIPANTE */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mb-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -348,7 +207,6 @@ export default function App() {
             </div>
           </div>
         </section>
-
         {/* TABS DE SELECCIÓN */}
         <section className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800">
           <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
@@ -364,17 +222,15 @@ export default function App() {
             <button type="button" onClick={sugerirAlineacionIA} className="bg-purple-950/80 border border-purple-800 text-purple-300 text-xs px-3 py-1.5 rounded-xl">✨ Autocompletar con IA</button>
           </div>
         </section>
-
         {/* REJILLA DE JUGADORES */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {jugadoresFiltrados.map((jugador) => {
+            // Buscamos si está seleccionado evaluando la lista correcta según la pestaña actual
             const esColombia = paisSeleccionado === 'Colombia';
             const esTitular = esColombia 
               ? titularesColombia.includes(Number(jugador.id)) 
               : titularesCongo.includes(Number(jugador.id));
-
             const infoGol = (esColombia ? goleadoresColombia : goleadoresCongo)[jugador.id] || { amountGoles: 0, rangosMinutosArray: [] };
-
             return (
               <div 
                 key={`${paisSeleccionado}-${jugador.id}`} 
@@ -398,11 +254,9 @@ export default function App() {
                     {esTitular ? 'Quitar' : 'Alinear'}
                   </button>
                 </div>
-
                 {textosIA[jugador.id] && (
                   <div className="mt-2 text-[11px] bg-purple-950/20 border border-purple-900/30 text-purple-200 p-2 rounded-lg italic">{textosIA[jugador.id]}</div>
                 )}
-
                 {/* CONTROLES DE GOLES */}
                 {esTitular && (
                   <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-col gap-2">
@@ -414,7 +268,6 @@ export default function App() {
                         <button type="button" onClick={() => handleCantidadGolesChange(jugador.id, (infoGol.amountGoles || 0) + 1, paisSeleccionado)} className="w-6 h-6 flex items-center justify-center rounded-md font-bold text-slate-400">+</button>
                       </div>
                     </div>
-
                     {(infoGol.amountGoles || 0) > 0 && (
                       <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 mt-1 flex flex-col gap-2">
                         {Array.from({ length: infoGol.amountGoles }).map((_, index) => (
@@ -442,7 +295,6 @@ export default function App() {
             <input type="text" placeholder="Entra: Ej. Quintero" value={jugadorEntra} onChange={(e) => setJugadorEntra(e.target.value)} className="w-full h-11 bg-slate-950 border border-slate-800 rounded-xl px-3 text-xs text-slate-200" />
           </div>
         </section>
-
         <div className="text-center mt-10">
           <button type="button" onClick={enviarPolla} className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-base px-10 py-3.5 rounded-xl shadow-lg">Enviar mi Polla Táctica 🚀</button>
         </div>
