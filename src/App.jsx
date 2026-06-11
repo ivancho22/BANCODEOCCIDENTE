@@ -4,6 +4,9 @@ import { datosJugadores, analisisPartidoIA } from './datosJugadores';
 export default function App() {
   // tiempo de espera
   const [cargando, setCargando] = useState(false);
+  // analisis global del partido generado por IA
+  const [mostrarAnalisisGlobal, setMostrarAnalisisGlobal] = useState(false);
+  const [textoAnalisisGlobal, setTextoAnalisisGlobal] = useState("");
   // Datos del participante
   const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
@@ -82,6 +85,26 @@ export default function App() {
     }
     setCargando(true); // Activa el estado de carga
     // Unificamos ambos arreglos de titulares para mandarlos de forma transparente a la API de Supabase
+    {/* ANÁLISIS DE LA IA (Global) */}
+    <section className="mb-8 text-center">
+      <button 
+        type="button" 
+        onClick={() => {
+          setMostrarAnalisisGlobal(!mostrarAnalisisGlobal);
+          // Aquí puedes poner tu texto estratégico o llamar a una función que lo traiga
+          setTextoAnalisisGlobal("💡 Análisis Táctico: Ambos equipos muestran una tendencia fuerte al ataque por las bandas. Colombia mantiene mayor posesión, mientras que RD Congo destaca por transiciones rápidas en contragolpe.");
+        }}
+        className="bg-purple-900/50 border border-purple-700 text-purple-200 text-sm font-bold px-6 py-2 rounded-full hover:bg-purple-800 transition-all"
+      >
+        {mostrarAnalisisGlobal ? 'Ocultar Análisis de la IA' : 'Ver Análisis de la IA del Partido'}
+      </button>
+
+      {mostrarAnalisisGlobal && (
+        <div className="mt-4 bg-slate-900 border border-purple-900/30 p-4 rounded-2xl text-purple-200 text-sm italic shadow-lg">
+          {textoAnalisisGlobal}
+        </div>
+      )}
+    </section>
     const payload = {
       nombre: nombre.trim(),
       correo: correo.trim().toLowerCase(),
